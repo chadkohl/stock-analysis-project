@@ -1,0 +1,61 @@
+services:
+  api:
+    build:
+      context: ./django_app
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./django_app:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  celery:
+    build:
+      context: ./django_app
+    command: celery -A myproject worker --loglevel=info
+    volumes:
+      - ./django_app:/app
+    depends_on:
+      - api
+      - redis
+
+  celery-beat:
+    build:
+      context: ./django_app
+    command: celery -A myproject beat --loglevel=info
+    volumes:
+      - ./django_app:/app
+    depends_on:
+      - api
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  pg_data:
